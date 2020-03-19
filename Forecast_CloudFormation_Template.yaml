@@ -1,0 +1,82 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Creates an S3 Bucket, IAM Policies, and SageMaker Notebook to work with Amazon Forecast.
+
+Parameters:
+
+  BucketName:
+    Type: String
+    Default: forecastdemo-firstname-lastname
+    Description: The name of the S3 Bucket to create, use only characters and numbers, no special characters or spaces.
+
+  NotebookName:
+    Type: String
+    Default: ForecastDemoLab-01
+    Description: Enter the name of the SageMaker notebook instance. Deafault is ForecastDemoLab.
+
+  
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      BucketName:
+        default: S3 Bucket Name
+      NotebookName:
+        default: Notebook Name
+
+    ParameterGroups:
+      - Label:
+          default: Datastorage
+        Parameters:
+          - BucketName
+
+  
+Resources:
+  # S3 First
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          -
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+
+  # SageMaker Execution Role
+  SageMakerIamRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service: [sagemaker.amazonaws.com, forecast.amazonaws.com]
+            Action: sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+        - "arn:aws:iam::aws:policy/AmazonForecastFullAccess"
+        - "arn:aws:iam::aws:policy/IAMFullAccess"
+
+  # SageMaker notebook
+  NotebookInstance:
+    Type: "AWS::SageMaker::NotebookInstance"
+    Properties:
+      InstanceType: "ml.t3.medium"
+      NotebookInstanceName: !Ref NotebookName
+      RoleArn: !GetAtt SageMakerIamRole.Arn
+      DefaultCodeRepository: https://github.com/vavourak/bp-forecast-lab-2020.git
+
+Outputs:
+  S3Bucket:
+    Value: !Ref BucketName
+    Description: S3 Bucket for object storage
